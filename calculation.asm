@@ -1,4 +1,4 @@
-%define MAX 21
+%define MAX	21
 %define ADD_MAX 22
 %define MUL_MAX 42
 section .data
