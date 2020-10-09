@@ -1,347 +1,362 @@
-%define MAX	21
-%define ADD_MAX 22
-%define MUL_MAX 42
-section .data
-    msg: db "Please input x and y: ",0Ah
-    .len: equ $-msg
-    newline: db 0Ah
-    .len: equ $-newline
-section .bss
-    num1: resb MAX
-    num2: resb MAX
-    len1: resb 4
-    len2: resb 4
-    readDigit: resb 1;每次读取一个字节
-    count: resb 4;计数器作用用于加法
-    count1: resb 4;计数器作用用于乘法
-    count2: resb 4;计数器作用用于乘法
-    count3: resb 4;计算器作用用于乘法结果输出
-    flag1: resb 4
-    flag2: resb 4
-    add_result: resb ADD_MAX
-    temp: resb 4
-    temp1: resb 4
-section .data
-    mul_temp: db 0,0,0,0
-    mul_temp_sum: db 0,0,0,0
-    mul_result: db 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-section .text
-global main
+SECTION .data
+msg1   db    'Please enter x and y: ', 0Ah      ; message string asking user for input
+input  times 100 db 0
+str1   times 50  db 0
+str2   times 50  db 0
+stres  times 100 db 0
 
-main:
-    mov dword[len1],0
-    mov dword[len2],0
-    
-    mov eax,4
-    mov ebx,1
-    mov ecx,msg
-    mov edx,msg.len
-    int 0x80
-    
-readNum1:
-    mov eax,3
-    mov ebx,0
-    mov ecx,readDigit
-    mov edx,1
-    int 0x80
-    
-    cmp byte[readDigit],32
-    je readNum2
-    
-    mov eax,num1
-    add eax,dword[len1]
-    mov bl,byte[readDigit]
-    mov byte[eax],bl
-    inc dword[len1]
-    jmp readNum1
+mul1   times 50  db 0
+mul2   times 50  db 0
+mulres times 100 db 0
 
-readNum2:
-    mov eax,3
-    mov ebx,0
-    mov ecx,readDigit
-    mov edx,1
-    int 0x80
-    
-    cmp byte[readDigit],0ah
-    je init_count_x
-    
-    mov eax,num2
-    add eax,dword[len2]
-    mov bl,byte[readDigit]
-    mov byte[eax],bl;
-    inc dword[len2]
-    jmp readNum2
-;对x进行扩展
-init_count_x:
-    mov eax,dword[len1]
-    mov dword[count],eax;把num1的长度len1赋值给count，作为计数器
-;对x进行移动
-move_x:
-    cmp dword[count],0
-    je extend_x_0
-    
-    mov eax,num1
-    add eax,dword[count]
-    dec eax;eax指向num1的最后一位的地址
-    mov bl,byte[eax]
-    add eax,MAX
-    sub eax,dword[len1]
-    mov byte[eax],bl
-    dec dword[count]
-    jmp move_x
-;对x进行0扩展
-extend_x_0:
-    mov dword[count],0
-extend_x_1:
-    mov eax,MAX
-    sub eax,dword[len1]
-    cmp dword[count],eax
-    je init_count_y
-    mov eax,num1
-    add eax,dword[count]
-    mov byte[eax],'0'
-    inc dword[count]
-    jmp extend_x_1
-;对y进行扩展
-init_count_y:
-    mov eax,dword[len2]
-    mov dword[count],eax
-;对y进行移动
-move_y:
-    cmp dword[count],0
-    je extend_y_0
-    
-    mov eax,num2
-    add eax,dword[count]
-    dec eax
-    mov bl,byte[eax]
-    add eax,MAX
-    sub eax,dword[len2]
-    mov byte[eax],bl
-    dec dword[count]
-    jmp move_y
-;对y进行扩展
-extend_y_0:
-    mov dword[count],0
-extend_y_1:
-    mov eax,MAX
-    sub eax,dword[len2]
-    
-    cmp dword[count],eax
-    je init_add
-    mov eax,num2
-    add eax,dword[count]
-    mov byte[eax],'0'
-    inc dword[count]
-    jmp extend_y_1
-;加法初始化
-init_add:
-    mov dword[count],MAX
-    mov dh,0
-;加法
-add_1:
-    cmp dword[count],0
-    je result_carry
-    mov eax,num1
-    add eax,dword[count]
-    dec eax
-    
-    mov ebx,num2
-    add ebx,dword[count]
-    dec ebx
-    
-    ;一位一位相加判断
-    mov cl,byte[eax]
-    sub cl,'0';将cl的值转为十进制
-    mov dl,byte[ebx]
-    sub dl,'0';将dl的值转为十进制
-    add cl,dl
-    add cl,dh
-    cmp cl,10
-    jnl carry
-    mov dh,0
-add_2:
-    add cl,'0'
-    mov eax,add_result
-    add eax,dword[count]
-    ;inc eax
-    mov byte[eax],cl
-    dec dword[count]
-    jmp add_1
-;加法进位
-carry:
-    mov dh,1
-    sub cl,10
-    jmp add_2
-result_carry:
-    add dh,'0'
-    mov eax,add_result
-    mov byte[eax],dh
-;初始化count计数器
-init_count:
-    mov dword[count],0
-;消除0
-judge_zero:
-    cmp dword[count],MAX
-    je judge_last_iszero
-    mov eax,add_result
-    add eax,dword[count]
-    inc dword[count]
-    mov cl,byte[eax]
-    cmp cl,'0'
-    je judge_zero
-    jmp print_add_result
-print_add_result:
-    mov eax,add_result
-    add eax,dword[count]
-    dec eax
-    mov dword[temp],eax
-    mov eax,4
-    mov ebx,1
-    mov ecx,dword[temp]
-    mov edx,1
-    int 0x80
-    cmp dword[count],ADD_MAX
-    je init_mul
-    inc dword[count]
-    jmp print_add_result
-judge_last_iszero:
-    mov eax,add_result
-    add eax,dword[count]
-    mov dword[temp],eax
-    mov eax,4
-    mov ebx,1
-    mov ecx,dword[temp]
-    mov edx,1
-    int 0x80
-    jmp init_mul
-;乘法开始
-init_mul:
-    ;初始化两个计数器，用于两重循环
-    mov dword[count1],20
-    mov dword[count2],20
-;外层循环
-loop_mul_1:
-    cmp byte[count1],0
-    jl init_count3
-    mov edi,num1
-    add edi,dword[count1]
-;内层循环
-loop_mul_2:
-    mov esi,num2
-    add esi,dword[count2]
-    
-    mov al,byte[edi]
-    mov bl,byte[esi]
-    sub al,'0'
-    sub bl,'0'
-    mul bl;ax暂存每一位的乘积结果，实际只对al有效
-    
-    mov ebx,mul_temp
-    mov word[ebx],ax
-    
-    mov ecx,dword[count1]
-    add ecx,dword[count2]
-    mov dword[flag1],ecx;flag1 = count1 + count2
-    mov dword[flag2],ecx
-    inc dword[flag2];flag2 = count1 + count2 + 1
-    
-    push eax
-    push ebx
-    mov ebx,mul_result
-    add ebx,dword[flag2]
-    mov eax,dword[mul_temp]
-    add al,byte[ebx]
-    mov ebx,mul_temp_sum
-    mov dword[mul_temp_sum],eax
-    pop ebx
-    pop eax
-    
-    push eax
-    push ebx
-    push edx
-    mov eax,dword[mul_temp_sum]
-    mov edx,10
-    div dl
-    mov ebx,mul_result
-    add ebx,dword[flag1]
-    add byte[ebx],al
-    mov ebx,mul_result
-    add ebx,dword[flag2]
-    mov byte[ebx],ah
-    pop edx
-    pop ebx
-    pop eax
-    
-    dec dword[count2]
-    cmp dword[count2],0
-    jl dec_count1
-    jmp loop_mul_2
-dec_count1:
-    mov dword[count2],20
-    dec byte[count1]
-    jmp loop_mul_1
-;初始化计数器count3
-init_count3:
-    call printLF
-    mov dword[count3],0
-add_char_zero:
-    cmp dword[count3],MUL_MAX
-    je init_count3_1
-    mov eax,mul_result
-    add eax,dword[count3]
-    mov cl,byte[eax]
-    add cl,'0'
-    mov byte[eax],cl
-    inc dword[count3]
-    jmp add_char_zero
-;再次初始化一下count3
-init_count3_1:
-    mov dword[count3],0
-judge_mul_zero:
-    cmp dword[count3],41
-    je judge_mul_last_zero
-    mov eax,mul_result
-    add eax,dword[count3]
-    inc dword[count3]
-    mov cl,byte[eax]
-    cmp cl,'0'
-    je judge_mul_zero
-    jmp print_mul_result
-print_mul_result:
-    mov eax,mul_result
-    add eax,dword[count3]
-    dec eax
-    mov dword[temp1],eax
-    mov eax,4
-    mov ebx,1
-    mov ecx,dword[temp1]
-    mov edx,1
-    int 0x80
-    cmp dword[count3],MUL_MAX
-    je print_lf
-    inc dword[count3]
-    jmp print_mul_result
-judge_mul_last_zero:
-    mov eax,mul_result
-    add eax,dword[count3]
-    mov dword[temp1],eax
-    mov eax,4
-    mov ebx,1
-    mov ecx,dword[temp1]
-    mov edx,1
-    int 0x80
-print_lf:
-    call printLF
-    mov eax,1
-    mov ebx,0
-    int 0x80
-printLF:
-    mov eax,4
-    mov ebx,1
-    mov ecx,newline
-    mov edx,newline.len
-    int 80h
+
+
+SECTION .bss
+
+
+SECTION .text
+global  _start
+ 
+_start:
+    mov     eax, msg1
+    call    sprint
+    mov     edx, 255        
+    mov     ecx, input      
+    mov     ebx, 0          
+    mov     eax, 3          
+    int     80h
+
+    mov     eax, 0
+    push    eax;why the push?
+    mov     eax, input
+    mov     ebx, str1
+    inc     ebx
+    mov     edx, str1
+    mov     byte [edx], 43;'+'
+
+split:
+    cmp     byte [eax], 10;LF, 换行符
+    je      .poploop
+
+.pushloop:
+    movzx   ecx, byte [eax];无符号扩展     
+    push    ecx
+    inc     eax
+    jmp     split
+.poploop:
+    pop     ecx
+    cmp     ecx, 0
+    je      judge                       ;判断进行加法还是减法
+    cmp     ecx, 45
+    jne     .nextcmp
+    mov     byte[edx], 45
+    jmp     .poploop
+.nextcmp:
+    cmp     ecx, 32
+    jne     .next
+    mov     ebx, str2
+    inc     ebx
+    mov     edx, str2
+    mov     byte [edx], 43
+    pop     ecx
+.next:
+    sub     cl, 48
+    mov     byte [ebx], cl
+    inc     ebx
+    jmp     .poploop
+
+judge:
+    mov     al, byte [str1]
+    add     al, byte [str2]
+    cmp     al, 88
+    jne     toadd
+    cmp     byte [str1], 45
+    je      .change
+    mov     esi, str1
+    mov     edi, str2
+    jmp     tosub
+.change:
+    mov     esi, str2
+    mov     edi, str1
+    jmp     tosub
+
+toadd:
+    mov     esi, str1
+    mov     edi, str2
+    mov     edx, stres
+    call    add
+    jmp     addfinish
+add:
+    pusha
+    mov     eax, 0
+    mov     ebx, 0
+    mov     ch, 0
+    mov     byte [edx], 43
+    cmp     byte [esi], 43
+    je     .addloop
+    mov     byte [edx], 45
+    ;判断加法循环是否应该结束
+.addloop:
+    inc     esi
+    inc     edi
+    inc     edx
+    mov     bl, 0
+    inc     ch
+    cmp     ch, 49
+    jg      .finished
+    mov     bl, byte [esi]
+    mov     cl, byte [edi]
+    add     bl, al
+    add     bl, cl
+    mov     eax, ebx
+    push    ebx
+    mov     ebx, 10
+    push    edx
+    mov     edx, 0
+    div     ebx
+    mov     eax, edx;???
+    pop     edx
+    mov     byte [edx], al
+    mov     al, 0
+    pop     ebx
+
+    cmp     bl, 9
+    jle     .addloop
+    mov     al, 1
+    jmp     .addloop
+.finished:
+    popa
+    ret
+tosub:
+    mov     edx, stres
+    mov     byte [edx], 43
+    mov     ebx, 0
+    mov     ecx, 0 
+    inc     edx
+    inc     esi
+    inc     edi
+    mov     eax, 0
+.subloop:
+    inc     ah
+    cmp     ah, 49
+    je      .subfinish
+    mov     bl, byte [esi]
+    mov     cl, byte [edi]
+    sub     bl, cl
+    sub     bl, al
+    mov     al, 0
+    cmp     bl, 0
+    jge     .store
+    mov     al, 1
+    add     bl, 10
+.store:
+    mov     byte [edx], bl
+    inc     edx
+    inc     esi
+    inc     edi
+    jmp     .subloop
+
+.subfinish:
+    cmp     al, 1
+    jne     addfinish
+    mov     eax, 1
+    mov     cl, 0
+    mov     esi, stres
+    inc     esi
+.reserve:
+    inc     cl
+    cmp     cl, 49
+    je      .addsign    
+    mov     edx, 9
+    sub     dl, byte [esi]
+    add     edx, eax
+    mov     eax, edx
+    mov     ebx, 10
+    mov     edx, 0
+    div     ebx
+    mov     byte [esi], dl
+    inc     esi
+    jmp     .reserve
+.addsign:
+    mov     byte [stres], 45
+ 
+
+tomul:
+    mov     edx, mulres
+    mov     byte[mul1], 43
+    mov     byte[mul2], 43
+    mov     eax, 0
+    mov     ebx, 0
+    mov     ecx, 0
+.mulloop:
+    cmp     ch, 20
+    jge     .finish
+    cmp     cl, 20
+    jl     .mul
+    inc     ch
+    mov     cl, 0
+.mul:
+    push    edx
+    push    ecx
+    movzx   eax, cl
+    movzx   eax, byte[str1+eax+1]
+    push    ebx
+    movzx   ebx, ch
+    mul     byte[str2+ebx+1]
+    pop     ebx
+    mov     edx, 0
+    mov     ecx,10
+    div     ecx
+    pop     ecx
+    push    ecx
+    add     cl, ch
+    movzx   ecx, cl
+    mov     byte [mul1+ecx+1],dl
+    mov     byte [mul1+ecx+1+1],al
+    pop     ecx
+    mov     esi, mul1
+    mov     edi, mul2
+    pop     edx
+    call    add
+    mov     esi, mulres
+    mov     edi, mul2
+    call    strcpy
+    inc     cl
+    jmp     .mulloop
+
+.finish:
+    jmp     return
+strcpy:
+    pusha
+    mov     eax, 0
+.cpyloop:
+    cmp     eax, 49
+    je      .cpyfinish
+    mov     bl, byte[esi+eax]
+    mov     byte[edi+eax], bl
+    mov     byte[esi+eax], 0
+    mov     byte[mul1+eax+1], 0
+    inc     eax
+    jmp     .cpyloop
+.cpyfinish:
+    popa
+    ret
+format:
+    pusha
+    mov     eax, 1
+    mov     ecx, 0
+    inc     esi
+.pushloop:
+    cmp     eax, ebx
+    je      .popjudge
+    mov     cl, byte[esi+eax-1]
+    push    ecx
+    inc     eax
+    jmp     .pushloop
+.popjudge:
+    cmp     eax, 1
+    je      .pluszero
+    pop     ecx
+    dec     eax
+    cmp     ecx, 0
+    je      .popjudge
+    jmp     .poploop
+.poploop:
+    add     ecx, 48
+    mov     byte[esi], cl
+    dec     eax
+    cmp     eax, 0
+    je      .matfinish
+    pop     ecx
+
+    inc     esi
+    jmp     .poploop
+.pluszero:
+    mov     byte[esi],48
+.matfinish:
+    popa
+    ret
+
+return:
+    mov     esi, stres
+    mov     ebx, 50
+    call    format
+    mov     eax, stres
+    cmp     byte[eax],43
+    jne     .snext
+    inc     eax
+.snext:
+    call    sprint
+    call    sprintLF
+    mov     esi, mul2
+    mov     ebx, 100
+    call    format
+    mov     al, byte[str1]
+    add     al, byte[str2]
+    cmp     al, 88
+    jne      .print
+    mov     byte[mul2], 45
+.print:
+    mov     eax, mul2
+    cmp     byte[eax],43
+    jne     .pnext
+    inc     eax
+.pnext:
+    call    sprint
+    ;call    sprintLF
+    call    quit
+;---------------------------
+;工具函数
+slen:
+    push    ebx
+    mov     ebx, eax
+ 
+nextchar:
+    cmp     byte [eax], 0
+    jz      finished
+    inc     eax
+    jmp     nextchar
+ 
+finished:
+    sub     eax, ebx
+    pop     ebx
+    ret
+ 
+ 
+ ;------------------------------------------
+sprint:
+    push    edx
+    push    ecx
+    push    ebx
+    push    eax
+    call    slen
+    mov     edx, eax
+    mov     ecx, [esp]
+    mov     ebx, 1
+    mov     eax, 4
+    int     80h
+    pop     eax
+    pop     ebx
+    pop     ecx
+    pop     edx
+    ret
+ 
+ 
+
+sprintLF: 
+    push    eax
+    mov     eax, 0AH
+    push    eax
+    mov     eax, esp
+    call    sprint
+    pop     eax
+    pop     eax
+    ret
+ 
+quit:
+    mov     ebx, 0
+    mov     eax, 1
+    int     80h
     ret
 
     
