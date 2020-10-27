@@ -1,32 +1,32 @@
 section .data
-	red db  27, '[1;31m'
-    ;27 means \033;[1;31m表示红色高亮
-	    .len    equ $ - red
-	default db 27, '[0m'
-    ;恢复默认
-	    .len    equ $ - default
+	;27 means \033;[1;31m表示红色高亮;[31m表示红色
+	red:	 	db  27, '[31m'
+    	.len:   equ $ - red
+	;恢复默认，清空所有特殊模式
+	ori: 		db 27, '[0m'
+    	.len:   equ $ - ori
 
 section .text
 	global my_print
-	global back
+	global back_to_default
 	global change_to_red
 
 	;my_print(char* c, int length);
 	;利用栈传递参数
 	my_print:
-		mov	edx,[esp+8]
-		mov	ecx,[esp+4]						
+		mov	eax,4
 		mov	ebx,1
-		mov	eax,4 
+		mov	ecx,[esp+4];char * c
+		mov	edx,[esp+8];length 
 		int	80h
 		ret
 		
 	
-	back:
+	back_to_default:
 		mov eax, 4
 		mov ebx, 1
-		mov ecx, default
-		mov edx, default.len
+		mov ecx, ori
+		mov edx, ori.len
 		int 80h
 		ret
 
