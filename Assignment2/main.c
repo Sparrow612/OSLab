@@ -8,13 +8,14 @@ typedef unsigned short w; //word, 2 byte
 typedef unsigned int dw; //double word, 4 byte
 
 struct FileNode{
-    char name[20];//文件或目录的名称
-    char fullname[200];
-    //文件或目录的父节点，这种实现方式的不好就是，文件全名长度顶天了200，但是可以设置的更大一些
-    dw size; //文件的大小，对目录来说，该值为0
-    int start_pos;//内容的起始位置，方便文件读取。.和..为0
+    char name[20];
+    char fullname[2000];
     int type; //0为目录，1为文件，-1为分割节点
-    int sub_pos; //子目录的起始下标，文件或.或..都为-1
+    dw size; //文件的大小，对目录来说，该值为0
+    int start_pos;//内容的起始位置，方便文件读取。
+    //.和..为0
+    int sub_pos; //子目录的起始下标
+    //文件或.或..都为-1
     w cluster; // 文件开始的簇号
 };
 
@@ -28,7 +29,7 @@ struct Fat12Header{
     w BPB_RsvdSecCnt; // Boot占用的扇区数
     b BPB_NumFATs;     // FAT表数
     w BPB_RootEntCnt; // 最大根目录文件数
-    w BPB_TotSec16;   // 每个FAT占用扇区数
+    w BPB_TotSec16;   // 扇区数
     b BPB_Media;       // 媒体描述符
     w BPB_FATSz16;    // 每个FAT占用扇区数
     w BPB_SecPerTrk;  // 每个磁道扇区数
@@ -44,7 +45,7 @@ int Rsvd_Sec, Byts_Per_Sec, Root_Ent_Cnt, Root_Sec, NumFATs, FATSz, Pre_Sec;
 /**根目录区条目，用来读取根目录数据
  * 32位
  */
-struct RootEntry {
+struct Entry {
     char name[11];//8.3 file name
     b attr; //文件属性
     char reserves[10]; //保留位
@@ -73,6 +74,7 @@ void printLF(){
 }
 /* 输出整形数 */
 void printNum(w num){
+    
     char numbers[20];
     int size = 1;
     for (w t = num;t>9;t/=10){
@@ -107,6 +109,7 @@ void iniFiles(){
     files[curFiles].name[1] = 0x00;
     files[curFiles].fullname[0] = '/';
     files[curFiles].fullname[1] = 0x00;
+    files[curFiles].type = 0;
     curFiles++;
     splitFiles();//根目录后需要分割符
 }
@@ -122,28 +125,25 @@ void readBoot(FILE *fat12){
     Byts_Per_Sec = header.BPB_BytsPerSec;
     Root_Ent_Cnt = header.BPB_RootEntCnt;
     Root_Sec = (Root_Ent_Cnt * ENT_SIZE + Byts_Per_Sec - 1) / Byts_Per_Sec;
-    if (header.BPB_FATSz16 != 0) {
-		FATSz = header.BPB_FATSz16;
-	} else {
-		FATSz = header.BPB_TotSec32;
-	}
+    FATSz = header.BPB_FATSz16;
     Pre_Sec = 1 + NumFATs * FATSz; // 根目录前有多少扇区
 }
-/**确定文件的类型 
+/**确定文件的类型
+ * 0:无关信息，过滤即可
  * 1:普通文件/目录
  * 2:.
  * 3:..
 */
-int identify(char *name){
+int classify(char *name){
     int flag = 1;
     //单独判断.和..
-    if(name[0] == 0x2E){
+    if(name[0] == '.'){
         flag = 2;
-        if(name[1] == 0x2E){
-            flag = 3;
+        if(name[1] == '.'){
+            flag += 1;
         }
         for(int i = 2;i<11;i++){
-            if(name[i] != 0x20){
+            if(name[i] != ' '){
                 return 0;
             }
         }
@@ -162,20 +162,20 @@ int identify(char *name){
 /**
  * 从fat12文件系统中读取数据
  * 引导扇区加上FAT1和FAT2共19个扇区
- * 根目录区共14个扇区 ？
  * 递归实现
  */
 void loadFiles(FILE *fat12, int father, int start, int ents){
     int l = curFiles;
     files[father].sub_pos = curFiles;
-    struct RootEntry ent;
-    struct RootEntry * entptr = &ent; 
+    
+    struct Entry ent;
+    struct Entry * entptr = &ent; 
     for (int i = 0; i < ents; i++){ 
         fseek(fat12, start+ENT_SIZE*i, SEEK_SET); 
         fread(entptr, 1, ENT_SIZE, fat12); // 读取32个字节，也就是一个条目
-        if (entptr->attr == 0x10 || entptr->attr == 0x20) {
+        if (entptr->attr == 0x00 || entptr->attr == 0x10 || entptr->attr == 0x20){
         // 0x10为目录，0x20为普通文件
-            int id = identify(entptr->name);
+            int id = classify(entptr->name);
             if (id==0) continue;
             if (id == 2 || id == 3){
                 files[curFiles].name[0] = '.';
@@ -228,7 +228,6 @@ void loadFiles(FILE *fat12, int father, int start, int ents){
                 files[curFiles].fullname[pos] = 0x00;
             //=================================填入其余参数===========================================
                 files[curFiles].size = t?entptr->fileSize:0;
-                printf("%d", files[curFiles].size);
                 files[curFiles].type = t;
                 // 根目录区前扇区 + 根目录区扇区，簇号从2开始
                 int stps = (Pre_Sec + Root_Sec + entptr->fstCluster - 2)*Byts_Per_Sec;
@@ -253,8 +252,30 @@ void load(FILE *fat12){
     iniFiles();
     loadFiles(fat12, 0, Pre_Sec*Byts_Per_Sec, Root_Ent_Cnt);
 }
-/* 读取FAT内容 */
-int getFATValue(FILE * fat12 , int num);
+/* 获取第num个FAT项 */
+int getFATValue(FILE * fat12 , int num) {
+	//FAT1的偏移字节
+	int fat_base = Rsvd_Sec * Byts_Per_Sec;
+	//FAT项的偏移字节
+	int fat_pos = fat_base + num*3/2;
+	//奇偶FAT项处理方式不同，分类进行处理，从0号FAT项开始, 0偶奇1
+	int type = 0;
+	if (num % 2 != 0) {
+		type = 1;
+	}
+	//先读出FAT项所在的两个字节
+	w bytes;
+	w* bytes_ptr = &bytes;
+	int check;
+	fseek(fat12, fat_pos, SEEK_SET);
+    fread(bytes_ptr , 1, 2, fat12); // 读入2字节
+	//type为0的话，取byte2的低4位和byte1构成的值，type为1的话，取byte2和byte1的高4位构成的值
+	if (type == 0) {
+		return bytes & 0x0fff; //低12位
+	} else {
+		return bytes>>4; // 高12位
+	}
+}
 /* 在文件列表中寻找某个名称的文件 */
 int locate(char* p, int size){
     int idx = -1;
@@ -322,8 +343,7 @@ void ls(int fpos){
         }
         spos++;    
     }
-    cnt = "\n";
-    my_print(cnt, 1);
+    printLF();
     for (int i=l;i<spos;i++){
         if (files[i].type == 0 && files[i].start_pos != 0){
             ls(i);
@@ -352,21 +372,19 @@ void lsl(int fpos){
         // 输出目录
             change_to_red(); // 文件颜色：红
             my_print(name, strlen(name));
+            back_to_default(); // 恢复颜色
             if (files[spos].sub_pos != -1){
             // 需要排除.&..
                 findDirAndFile(files[spos].sub_pos);
             }
-            back_to_default(); // 恢复颜色
         }
-        cnt = "\n";
-        my_print(cnt, 1);  
+        printLF();
         spos++;    
     }
-    cnt = "\n";
-    my_print(cnt, 1);
     for (int i=l;i<spos;i++){
         if (files[i].type == 0 && files[i].start_pos != 0){
-            ls(i);
+            printLF();
+            lsl(i);
         }
     }
 
@@ -375,7 +393,7 @@ void lsl(int fpos){
 void cat(FILE* fat12, int fpos){
     int start = files[fpos].start_pos;
     w nxtclst = getFATValue(fat12, files[fpos].cluster);
-    fseek(fat12, start, SEEK_SET);
+    int a = fseek(fat12, start, SEEK_SET);
     char cnt[1024*1024*4];
     int len = fread(cnt, 1, Byts_Per_Sec, fat12);
     while (nxtclst < 0x0ff7){
@@ -386,12 +404,11 @@ void cat(FILE* fat12, int fpos){
         nxtclst = getFATValue(fat12, nxtclst);
     }
     my_print(cnt, len);
-    char *lf = "\n";
-    my_print(lf, 1); // 最后打印换行符
+    printLF();
 }
 /**************************************************************************************************************************************************
  * 命令读取区*/
-char input[500]; // store a command, reusablee
+char input[500]; // store a command, reusable
 int ptr = 0; // 输入的当前位置
 int l = 0; // 是否设置-l选项
 /**
@@ -438,7 +455,6 @@ void loadArgv(int cmd, FILE* fat12){
     int dnum = 0; // 输入的目录数，最多一个
     // 下面三个变量都为“错误选项输入报错”服务
     int ef = 0; // error flag, 1 means an error occured
-    int mf = 0; // multi-files, 1 means more than one file
     int erri = 0; // error index
     int errn = 0; // error length
     int curr = 0; // 目录/文件字符串的当前长度
@@ -463,7 +479,14 @@ void loadArgv(int cmd, FILE* fat12){
             if (erri + 1 == ptr){
                 ef = 1;
             }//说明只输入了一个‘-’
-            if (!ef) l = 1;
+            if (!ef) {
+                l = 1;
+            }
+            else{
+                char * warn = "Wrong Input! The Option does not exist! Error:";
+                printError(warn, strlen(warn), input + erri, errn);
+                return;
+            }
         }
         else {
         // 输入为正常参数
@@ -471,8 +494,7 @@ void loadArgv(int cmd, FILE* fat12){
                 char * warn = "You input more than one file or directory!";
                 char * cnt = "";
                 printError(warn, strlen(warn), cnt, 0);
-                mf = 1;
-                break;
+                return;
             }
             else {
             // 读取文件参数
@@ -484,18 +506,14 @@ void loadArgv(int cmd, FILE* fat12){
         }
         ptr++;
     }
-    if (mf) return;
-    if (ef){
-        char * warn = "Wrong Input! The Option does not exist! Error:";
-        printError(warn, strlen(warn), input + erri, errn);
-        return;
-    }
     int start = -1; // 除了. /，目录开始的索引
     dir[0] = '/';
-    for (int i = 0;i<curr;i++){
-        if (tmp[i]!='.'&&tmp[i]!='/'){
-            start = i;
-            break;
+    if (!(tmp[0]=='.'&&curr==1)){ // 只输入一个点就不用继续读了
+        for (int i = 0;i<curr;i++){
+            if (!(tmp[i]=='.'&&tmp[i+1]=='/')&&tmp[i]!='/'){
+                start = i;
+                break;
+            }
         }
     }
     int dirlen = 1; // 最终目录的长度
@@ -512,36 +530,54 @@ void loadArgv(int cmd, FILE* fat12){
     }
     if (cmd == 1) {
     //ls指令的目标是目录，所以需要补全目录，即保证以‘/’结尾
-        if (curr>0 && tmp[curr-1]!='/'){
+        if (curr>0 && dir[dirlen-1]!='/'){
             dir[dirlen++] = '/';
         }
     }
     dir[dirlen] = '\0'; // 保险起见加上终止符
     //根据指令调度实现
+    if (cmd == 1){
+        for (int i=1;i<dirlen;i++){
+            if (dir[i]=='.'){
+                char * warn = "You can only input a dir for ls!";
+                printError(warn, strlen(warn), "", 0);
+                return;
+            }
+        }
+    }
     int fpos = locate(dir, dirlen);
     if (fpos == -1){
     // 没有找到文件，报错
-        char * warn = "File or directory does not exist!";
-        char * cnt = "";
-        printError(warn, strlen(warn), cnt, 0);
+        char * warn = "Not found:";
+        printError(warn, strlen(warn), dir, dirlen);
         return;
     }
     else {
     // 使用文件索引作为参数调用实现
-        if (cmd==1) {
+        char * err;
+        switch (cmd)
+        {
+        case 1:
             if (l) {
                 lsl(fpos);
             }
             else {
                 ls(fpos);
             }
-        }
-        else if(cmd==2){
-            cat(fat12, fpos);
-        }
-        else {
-            char * err = "A bad error has happened.";
+            break;
+        case 2:
+            if (files[fpos].type!=0){
+                cat(fat12, fpos);
+                break;
+            }else{
+                err = "Not a file:";
+                printError(err, strlen(err), dir, dirlen);
+                break;
+            }
+        default:
+            err = "A bad error has happened.";
             my_print(err, strlen(err));
+            break;
         }
     }
 }
@@ -565,28 +601,4 @@ int main(){
         }
     }
     fclose(fat12);
-}
-/* 获取第num个FAT项 */
-int getFATValue(FILE * fat12 , int num) {
-	//FAT1的偏移字节
-	int fatBase = Rsvd_Sec * Byts_Per_Sec;
-	//FAT项的偏移字节
-	int fatPos = fatBase + num*3/2;
-	//奇偶FAT项处理方式不同，分类进行处理，从0号FAT项开始, 0偶奇1
-	int type = 0;
-	if (num % 2 != 0) {
-		type = 1;
-	}
-	//先读出FAT项所在的两个字节
-	w bytes;
-	w* bytes_ptr = &bytes;
-	int check;
-	fseek(fat12, fatPos, SEEK_SET);
-    fread(bytes_ptr , 1, 2, fat12); // 读入2字节
-	//type为0的话，取byte2的低4位和byte1构成的值，type为1的话，取byte2和byte1的高4位构成的值
-	if (type == 0) {
-		return bytes & 0x0fff; //低12位
-	} else {
-		return bytes>>4; // 高12位
-	}
 }
