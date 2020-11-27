@@ -25,13 +25,13 @@ typedef struct s_console
 #define SCR_UP	1	/* scroll forward */
 #define SCR_DN	-1	/* scroll backward */
 
-#define SCREEN_SIZE		(80 * 25)
+#define SCREEN_SIZE			(80 * 25)
 #define SCREEN_WIDTH		80
 
-#define	TAB_LEN			4
+#define	TAB_LEN				4
 
 #define DEFAULT_CHAR_COLOR	0x07	/* 0000 0111 黑底白字 */
 #define RED_CHAR_COLOR		0x04	/* 0000 0100 黑底红字 */
-#define	TAB_COLOR	 		0x01	/* 0000 0001 */
+#define TAB_CHAR			0x00	/* '\0' */
 
 #endif /* _ORANGES_CONSOLE_H_ */

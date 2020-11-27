@@ -26,9 +26,6 @@ PRIVATE void set_cursor(unsigned int position);
 PRIVATE void set_video_start_addr(u32 addr);
 PRIVATE void flush(CONSOLE* p_con);
 
-PRIVATE int tabTop; // 记录当前tab个数
-PRIVATE int tabs[SCREEN_SIZE/4];  //记录所有tab的位置
-PRIVATE int tabPtr; // 只有查询tab时候使用
 
 // 存储换行前后信息
 struct LfNode{
@@ -42,30 +39,32 @@ PRIVATE struct LfNode lfs[SCREEN_SIZE/SCREEN_WIDTH];
 PRIVATE int opTop;
 PRIVATE	char ops[SCREEN_SIZE]; // 将所有操作记录下来，撤销时候会用到
 
-
+/*======================================================================*
+			   isTab
+ *======================================================================*/
 PRIVATE int isTab(unsigned int cur){
-	if (tabPtr <= tabTop && cur == tabs[tabPtr]){
-		tabPtr++;
+	u8* start = (u8*)(V_MEM_BASE + cur * 2);
+	if (start[0] == TAB_CHAR && start[2] == TAB_CHAR && start[4] == TAB_CHAR && start[6] == TAB_CHAR)
 		return 1;
-	}
 	return 0;
 }
 
-
-PRIVATE int matched(unsigned int cur, char* text, int len){
+/*======================================================================*
+			   the code for search is here
+ *======================================================================*/
+PRIVATE int matched(unsigned int cur, char* text, int len)
+{
 	unsigned int cursor = cur;
 	for (int i=0;i<len;i++){
 		u8* start = (u8*)(V_MEM_BASE + cursor * 2);
-		if (start[0] == ' ' && start[2] == ' ' && start[4] == ' ' && start[6] == ' '){
-			if (isTab(cursor+4)){
-				if (text[i] == '\t'){
-					cursor += 4;
-					continue;
-				}
-				else{
-					return 0;
-				}
-			}else{}
+		if (isTab(cursor)){
+			if (text[i] == '\t'){
+				cursor += 4;
+				continue;
+			}
+			else{
+				return 0;
+			}
 		}
 		else if (*start!=text[i])
 			return 0;
@@ -74,8 +73,7 @@ PRIVATE int matched(unsigned int cur, char* text, int len){
 	return cursor - cur;
 }
 
-PRIVATE void turnToRed(unsigned int cursor, int len){
-	u8* start = (u8*)(V_MEM_BASE + cursor * 2) + 1;
+PRIVATE void turnToRed(u8* start, int len){
 	for (int i=0;i<len;i++){
 		*start = RED_CHAR_COLOR;
 		start += 2;
@@ -84,12 +82,11 @@ PRIVATE void turnToRed(unsigned int cursor, int len){
 
 PUBLIC void search(CONSOLE* p_con, char* text, int len){
 	int t;
-	tabPtr = 0; // 每次查找时，将指针归位
 	for (unsigned int i=p_con->original_addr;i<p_con->cursor-len;i++){
 		u8* start = (u8*)(V_MEM_BASE + i * 2) + 1;
 		if (*start == RED_CHAR_COLOR) break; // 遇到了搜索文字
 		if (t = matched(i, text, len)){
-			turnToRed(i, t);
+			turnToRed(start, t);
 			i += t - 1;
 		}
 	}
@@ -105,6 +102,11 @@ PUBLIC void endSearch(CONSOLE* p_con, int keyLen){
 			*start = DEFAULT_CHAR_COLOR;
 	}
 }
+/*======================================================================*
+			   the code for search is end
+ *======================================================================*/
+
+
 
 /*======================================================================*
 			   init_screen
@@ -141,6 +143,7 @@ PUBLIC void init_screen(TTY* p_tty)
 	clean_screen(p_tty->p_console);
 }
 
+// clean and reset, maybe the name "refresh" is more suitable
 PUBLIC void clean_screen(CONSOLE* p_con){
 	p_con->cleaning = 1;
 	u8* p_vmem = (u8*)(V_MEM_BASE);
@@ -150,7 +153,7 @@ PUBLIC void clean_screen(CONSOLE* p_con){
 	}
 	p_con->cursor = p_con->current_start_addr 
 	= p_con->original_addr;
-	tabTop = lfTop = opTop = -1;
+	lfTop = opTop = -1;
 	flush(p_con);
 	p_con->cleaning = 0;
 }
@@ -163,12 +166,6 @@ PUBLIC int is_current_console(CONSOLE* p_con)
 	return (p_con == &console_table[nr_current_console]);
 }
 
-PUBLIC void rollback(CONSOLE* p_con) {
-// 先前已经将字符存入栈，所以这里直接调用outchar即可
-	p_con->rolling = 1;
-	out_char(p_con, ops[opTop--]);
-	p_con->rolling = 0;
-}
 
 /*======================================================================*
 			   out_char
@@ -194,7 +191,7 @@ PUBLIC void out_char(CONSOLE* p_con, char ch)
 		if (p_con->cursor > p_con->original_addr) {
 			// 首先需要判断退格什么字符
 			char c;
-			if (p_con->cursor == tabs[tabTop]){
+			if (isTab(p_con->cursor-TAB_LEN)){
 			// 退格tab
 				c = '\t';
 				for (int i=1;i<=TAB_LEN;i++){
@@ -202,7 +199,6 @@ PUBLIC void out_char(CONSOLE* p_con, char ch)
 					*(p_vmem-2*i) = ' ';
 					*(p_vmem-(2*i-1)) = DEFAULT_CHAR_COLOR;
 				}
-				tabTop--;
 			}else if (p_con->cursor == lfs[lfTop].post)
 			{ // 退格换行符
 				c = '\n';
@@ -222,11 +218,12 @@ PUBLIC void out_char(CONSOLE* p_con, char ch)
 	case '\t':
 		// 输入四个空格，保存加入四个空格后的p_con->curson的值；删除的时候要一起删（四个空格是一个整体）
 		if (p_con->cursor <  
-			p_con->original_addr + p_con->v_mem_limit - 4){
-			for(int i=0;i<4;i++){
-				out_char(p_con, ' ');
+			p_con->original_addr + p_con->v_mem_limit - TAB_LEN){
+			for(int i=0;i<TAB_LEN;i++){
+				*p_vmem++ = TAB_CHAR;
+				*p_vmem++ = DEFAULT_CHAR_COLOR;
+				p_con->cursor++;
 			}
-			tabs[++tabTop] = p_con->cursor;
 			if (!p_con->rolling)	
 				ops[++opTop] = '\b';
 		}
@@ -251,6 +248,14 @@ PUBLIC void out_char(CONSOLE* p_con, char ch)
 	}
 
 	flush(p_con);
+}
+
+PUBLIC void rollback(CONSOLE* p_con) {
+// 先前已经将字符存入栈，所以这里直接调用outchar即可
+	p_con->rolling = 1;
+	if (opTop >= 0)
+		out_char(p_con, ops[opTop--]);
+	p_con->rolling = 0;
 }
 
 /*======================================================================*
