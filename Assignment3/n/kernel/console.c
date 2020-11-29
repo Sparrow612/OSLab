@@ -98,8 +98,7 @@ PUBLIC void endSearch(CONSOLE* p_con, int keyLen){
 	}
 	for (int i=p_con->original_addr;i<p_con->cursor;i++){
 		u8* start = (u8*)(V_MEM_BASE + i * 2) + 1;
-		if (*start==RED_CHAR_COLOR)
-			*start = DEFAULT_CHAR_COLOR;
+		*start = DEFAULT_CHAR_COLOR;
 	}
 }
 /*======================================================================*
