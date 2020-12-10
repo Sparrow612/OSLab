@@ -63,7 +63,7 @@ typedef struct s_sema {
 }SEMAPHORE;
 
 /* stacks of tasks */
-#define STACK_SIZE_TTY		0x8000  // 并没有使用
+#define STACK_SIZE_TTY		0x8000
 #define STACK_SIZE_TESTA	0x8000
 #define STACK_SIZE_TESTB	0x8000
 #define STACK_SIZE_TESTC	0x8000

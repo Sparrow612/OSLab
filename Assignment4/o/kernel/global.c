@@ -26,8 +26,8 @@ PUBLIC  TASK    user_proc_table[NR_PROCS] = {
 					{ReaderA, STACK_SIZE_TESTA, "ReaderA"},
 					{ReaderB, STACK_SIZE_TESTB, "ReaderB"},
 					{ReaderC, STACK_SIZE_TESTC, "ReaderC"},
-                    {WriterD, STACK_SIZE_TESTD, "WriterD"},
-                    {WriterE, STACK_SIZE_TESTE, "WriterE"},
+                    {WritterD, STACK_SIZE_TESTD, "WriterD"},
+                    {WritterE, STACK_SIZE_TESTE, "WriterE"},
                     {ReporterF, STACK_SIZE_TESTF, "ReporterF"}};
 
 PUBLIC	char		task_stack[STACK_SIZE_TOTAL];

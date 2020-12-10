@@ -48,7 +48,7 @@ PUBLIC void schedule()
 	int flag = 1;
 
 	while (!greatest_ticks) {
-		for (p = proc_table; p < proc_table+NR_TASKS; p++) {
+		for (p = proc_table + 1; p < proc_table+NR_TASKS+NR_PROCS; p++) {
 
 			if (p->sleeping > 0 || p->blocked) continue; 
 			// 正在睡眠/阻塞的进程不会被执行（也就是不会被分配时间片）
@@ -60,12 +60,15 @@ PUBLIC void schedule()
 		}
 		// 如果都是0，那么需要重设ticks
 		if (!greatest_ticks) {
-			for (p = proc_table; p < proc_table+NR_TASKS; p++) {
+			for (p = proc_table + 1; p < proc_table+NR_TASKS+NR_PROCS; p++) {
 				if (p->ticks > 0) continue; // 正在睡眠/阻塞的进程（>0却还进入这个if语句块的唯一可能）可能还剩时间片，不应重置
 				p->ticks = p->priority;
 			}
 		}
-		if (flag) break; // 如果全都在阻塞状态，那么放弃本次调度
+		if (flag) {
+			p_proc_ready = proc_table;
+			break;
+		}; // 如果全都在阻塞状态，那么放弃本次调度
 	}
 }
 
@@ -84,8 +87,11 @@ PUBLIC void sys_sleep(int milli_sec)
     schedule();
 }
 
-PUBLIC void sys_write_str(char* buf, int color)
+PUBLIC void sys_write_str(char* buf, int len)
 {
-    disp_color_str(buf, color);
+    CONSOLE* p_con = console_table;
+	for (int i = 0;i < len; i++){
+		out_char(p_con, buf[i]);
+	}
 }
 

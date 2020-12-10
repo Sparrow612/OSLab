@@ -17,6 +17,7 @@ PUBLIC u32	seg2phys(u16 seg);
 
 /* klib.c */
 PUBLIC void	delay(int time);
+PUBLIC char* itoa(char* str, int num);
 
 /* kernel.asm */
 void restart();
@@ -25,8 +26,8 @@ void restart();
 void ReaderA();
 void ReaderB();
 void ReaderC();
-void WriterD();
-void WriterE();
+void WritterD();
+void WritterE();
 void ReporterF();
 
 /* i8259.c */
@@ -45,8 +46,9 @@ PUBLIC void task_tty();
 PUBLIC void in_process(TTY* p_tty, u32 key);
 
 /* console.c */
-PUBLIC void out_char(CONSOLE* p_con, char ch, u8 color );
+PUBLIC void out_char(CONSOLE* p_con, char ch);
 PUBLIC void scroll_screen(CONSOLE* p_con, int direction);
+PUBLIC void init_screen(TTY* p_tty);
 
 /* printf.c */
 PUBLIC  int     printf(const char *fmt, ...);
@@ -68,7 +70,7 @@ PUBLIC  void    sys_call();             /* int_handler */
 
 /* 系统调用 - 用户级 */
 PUBLIC  int     get_ticks();
-PUBLIC  void    write_str(char* buf, int color);
+PUBLIC  void    write_str(char* buf, int len);
 PUBLIC  void    sleep_ms(int milli_sec);
 PUBLIC  void    P(SEMAPHORE* s);
 PUBLIC  void    V(SEMAPHORE* s);

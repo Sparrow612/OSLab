@@ -19,8 +19,8 @@ typedef	void	(*int_handler)	();
 typedef	void	(*task_f)	();
 typedef	void	(*irq_handler)	(int irq);
 
-typedef	void    (*read_f)   (char, int, int);
-typedef	void    (*write_f)   (char, int, int);
+typedef	void    (*read_f)   (char, int, char);
+typedef	void    (*write_f)   (char, int, char);
 
 typedef void*	system_call;
 

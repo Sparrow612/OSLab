@@ -20,13 +20,16 @@ int strategy;
 
 PRIVATE void init_tasks()
 {
+	clean(console_table);
+	init_screen(tty_table);
+	
 	proc_table[0].ticks = proc_table[0].priority = 1;
-	proc_table[1].ticks = proc_table[1].priority = 1;
-	proc_table[2].ticks = proc_table[2].priority = 1;
-	proc_table[3].ticks = proc_table[3].priority = 1;
-	proc_table[4].ticks = proc_table[4].priority = 1;
-	proc_table[5].ticks = proc_table[5].priority = 1;
-	proc_table[6].ticks = proc_table[6].priority = 1;
+	proc_table[1].ticks = proc_table[1].priority = TIME_SLICE;
+	proc_table[2].ticks = proc_table[2].priority = TIME_SLICE;
+	proc_table[3].ticks = proc_table[3].priority = TIME_SLICE;
+	proc_table[4].ticks = proc_table[4].priority = TIME_SLICE;
+	proc_table[5].ticks = proc_table[5].priority = TIME_SLICE;
+	proc_table[6].ticks = proc_table[6].priority = TIME_SLICE;
 
 	k_reenter = 0;
 	ticks = 0;
@@ -109,32 +112,26 @@ PUBLIC int kernel_main()
 	while(1){}
 }
 
-PRIVATE read_proc(char* proc, int slices, int color){
-	write_str(proc, color);
-	write_str("R start\n", color);
-	
-	write_str(proc, color);
-	write_str("in R\n", color);
+PRIVATE read_proc(char proc, int slices, int color){
+	printf("%c%c R start", color, proc);
+
+	printf("%c%c in R", color, proc);
 	sleep_ms(slices * TIME_SLICE); // 读耗时slices个时间片
 	
-	write_str(proc, color);
-	write_str("R end\n", color);
+	printf("%c%c R end", color, proc);
 }
 
-PRIVATE	write_proc(char* proc, int slices, int color){
-	write_str(proc, color);
-	write_str("W start\n", color);
-	
-	write_str(proc, color);
-	write_str("in W\n", color);
-	sleep_ms(slices * TIME_SLICE); // 写耗时slices个时间片
+PRIVATE	write_proc(char proc, int slices, int color){
+	printf("%c%c W start", color, proc);
 
-	write_str(proc, color);
-	write_str("W end\n", color);
+	printf("%c%c in W", color, proc);
+	sleep_ms(slices * TIME_SLICE); // 写耗时slices个时间片
+	
+	printf("%c%c W end", color, proc);
 }
 
 // 读写公平方案
-void read_v0(char* proc, int slices, int color){
+void read_v0(char proc, int slices, int color){
 	while (1)
 	{
 		P(&queue);
@@ -157,24 +154,27 @@ void read_v0(char* proc, int slices, int color){
 		if (readers==0)
 			V(&rw_mutex); // 没有读者，可以开始写了
 		V(&r_mutex);
-		milli_delay(TIME_SLICE);
+		sleep_ms(slices*TIME_SLICE);
 	}	
 }
 
-void write_v0(char* proc, int slices, int color){
+void write_v0(char proc, int slices, int color){
 	while (1) 
-	{
+	{	
 		P(&queue);
 		P(&rw_mutex);
+		writters++;
 		V(&queue);
 		// 写过程
 		write_proc(proc, slices, color);
+		
+		writters--;
 		V(&rw_mutex);
-		milli_delay(TIME_SLICE);
+		sleep_ms(slices*TIME_SLICE);
 	}
 }
 // 读者优先
-void read_v1(char* proc, int slices, int color){
+void read_v1(char proc, int slices, int color){
 	while (1)
 	{
 		P(&r_mutex); // 每个读者原子地访问readers变量
@@ -195,21 +195,27 @@ void read_v1(char* proc, int slices, int color){
 		if (readers==0)
 			V(&rw_mutex); // 没有读者，可以开始写了
 		V(&r_mutex);
+		sleep_ms(slices*TIME_SLICE);
 	}	
 }
 
-void write_v1(char* proc, int slices, int color){
+void write_v1(char proc, int slices, int color){
 	while (1) 
 	{
+		
 		P(&rw_mutex);
+		writters++;
 		// 写过程
 		write_proc(proc, slices, color);
+		writters--;
 		V(&rw_mutex);
+
+		sleep_ms(slices*TIME_SLICE);
 	}
 }
 
 // 写者优先
-void read_v2(char* proc, int slices, int color){
+void read_v2(char proc, int slices, int color){
 	while (1)
 	{
 		P(&queue);
@@ -232,10 +238,11 @@ void read_v2(char* proc, int slices, int color){
 		if (readers==0)
 			V(&rw_mutex); // 没有读者，可以开始写了
 		V(&r_mutex);
+		sleep_ms(slices*TIME_SLICE);
 	}
 }
 
-void write_v2(char* proc, int slices, int color){
+void write_v2(char proc, int slices, int color){
 	while (1) 
 	{
 		P(&w_mutex); // 写者互斥地访问
@@ -256,6 +263,7 @@ void write_v2(char* proc, int slices, int color){
 		if (writters==0)
 			V(&queue);
 		V(&w_mutex);
+		sleep_ms(slices*TIME_SLICE);
 	}
 }
 
@@ -267,7 +275,7 @@ write_f write_funcs[3] = {write_v0, write_v1, write_v2};
  *======================================================================*/
 void ReaderA()
 {
-	read_funcs[strategy]("A ", 2, RED);
+	read_funcs[strategy]('A', 2, '\01');
 }
 
 /*======================================================================*
@@ -275,7 +283,7 @@ void ReaderA()
  *======================================================================*/
 void ReaderB()
 {
-	read_funcs[strategy]("B ", 3, GREEN);
+	read_funcs[strategy]('B', 3, '\02');
 }
 
 /*======================================================================*
@@ -283,23 +291,23 @@ void ReaderB()
  *======================================================================*/
 void ReaderC()
 {
-	read_funcs[strategy]("C ", 3, BRIGHT_BLUE);
+	read_funcs[strategy]('C', 3, '\03');
 }
 
 /*======================================================================*
                                WriterD
  *======================================================================*/
-void WriterD()
+void WritterD()
 {
-	write_funcs[strategy]("D ", 3, BRIGHT_RED);
+	write_funcs[strategy]('D', 3, '\04');
 }
 
 /*======================================================================*
                                WriterE
  *======================================================================*/
-void WriterE()
+void WritterE()
 {
-	write_funcs[strategy]("E ", 4, BRIGHT_GREEN);
+	write_funcs[strategy]('E', 4, '\05');
 }
 
 /*======================================================================*
@@ -307,32 +315,15 @@ void WriterE()
  *======================================================================*/
 void ReporterF()
 {
-	int color = WHITE;
-	int r;
-	while(1){
-		//disp_str("slice ");
-		//disp_int(slice);
-		if (readers == 0 && rw_mutex.value <= 0){
-			// 写状态
-			write_str("W\n", color);
-		}else if(readers > 0){
-			// 说明处于读状态
-			switch (true_rc){
-			case 1:
-				write_str("1R\n", color);
-				break;
-			case 2:
-				write_str("2R\n", color);
-				break;
-			case 3:
-				write_str("3R\n", color);
-				break;
-			default:
-				break;
-			}
-		}else {
-			write_str("Nothing", color);
-		}
-		sleep_ms(TIME_SLICE);
-	}
+	char color = '\06';
+	while (1) {
+        if (readers > 0 && true_rc >0 ){
+            printf("%c%c reading", color, true_rc);
+        } else if (writters > 0){
+            printf("%cWritting", color);
+        } else {
+            printf("%cboth not", color);
+        }
+        sleep_ms(TIME_SLICE);
+    }	
 }

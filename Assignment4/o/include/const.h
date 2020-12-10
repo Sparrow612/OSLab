@@ -99,11 +99,11 @@
 /* system call */
 #define NR_SYS_CALL     5
 
-#define TIME_SLICE      5000
+#define TIME_SLICE      1000
 #define MAX_READERS     3
 
 #define BRIGHT_RED      0x0C
 #define BRIGHT_GREEN    0x0A
-#define BRIGHT_BLUE    0x9     /* 1001 */
+#define BRIGHT_BLUE    	0x09    /* 1001 */
 
 #endif /* _ORANGES_CONST_H_ */

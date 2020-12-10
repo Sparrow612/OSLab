@@ -24,40 +24,18 @@ PRIVATE void tty_do_read(TTY* p_tty);
 PRIVATE void tty_do_write(TTY* p_tty);
 PRIVATE void put_key(TTY* p_tty, u32 key);
 
-PUBLIC void clean(TTY* p_tty){
-	u8* p_vmem = (u8*)(V_MEM_BASE);
-	CONSOLE* p_con = p_tty->p_console;
-	for (int i=p_con->original_addr;i<p_con->cursor;i++){
-		*p_vmem++ = ' ';
-		*p_vmem++ = DEFAULT_CHAR_COLOR;
-	}
-	p_con->cursor = p_con->current_start_addr 
-	= p_con->original_addr;
-	flush(p_con);
-}
-
 /*======================================================================*
                            task_tty
  *======================================================================*/
 PUBLIC void task_tty()
 {
 	TTY*	p_tty;
-
-	init_keyboard();
-
-	for (p_tty=TTY_FIRST;p_tty<TTY_END;p_tty++) {
-		init_tty(p_tty);
-	}
-	select_console(0);
+	
 	int start = get_ticks();
 	while (1) {
-		if((get_ticks() - start) >= 200000){
-			clean(TTY_FIRST);
-			start = get_ticks();
-		}
-		// for (p_tty=TTY_FIRST;p_tty<TTY_END;p_tty++) {
-		// 	tty_do_read(p_tty);
-		// 	tty_do_write(p_tty);
+		// if((get_ticks() - start) >= 20000){
+		// 	clean(console_table);
+		// 	start = get_ticks();
 		// }
 	}
 }
@@ -191,4 +169,13 @@ PUBLIC void tty_write(TTY* p_tty, char* buf, u8 color)
 //         tty_write(&tty_table[p_proc->nr_tty], buf, (u8)color);
 //         return 0;
 // }
+
+PUBLIC void out_str(char* buf, int color)
+{
+	CONSOLE* p_con = console_table;
+	char* p = buf;
+	while(*p){
+		out_char(p_con, *p, color);
+	}
+}
 

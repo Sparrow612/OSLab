@@ -97,7 +97,6 @@ disp_color_str:
 
 .2:
 	mov	[disp_pos], edi
-
 	pop	ebp
 	ret
 
