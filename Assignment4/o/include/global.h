@@ -14,7 +14,7 @@
 EXTERN	int		ticks;
 EXTERN  int		readers;
 EXTERN  int		writters;
-EXTERN  int		true_rc;
+EXTERN  int		writting;
 
 EXTERN	int		disp_pos;
 EXTERN	u8		gdt_ptr[6];	// 0~15:Limit  16~47:Base

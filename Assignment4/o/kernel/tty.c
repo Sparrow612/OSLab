@@ -143,23 +143,23 @@ PRIVATE void tty_do_write(TTY* p_tty)
 		}
 		p_tty->inbuf_count--;
 
-		out_char(p_tty->p_console, ch, DEFAULT_CHAR_COLOR);
+		out_char(p_tty->p_console, ch);
 	}
 }
 
 /*======================================================================*
                               tty_write
 *======================================================================*/
-PUBLIC void tty_write(TTY* p_tty, char* buf, u8 color)
-{
-        char* p = buf;
-        int i = strlen(buf);
+// PUBLIC void tty_write(TTY* p_tty, char* buf, u8 color)
+// {
+//         char* p = buf;
+//         int i = strlen(buf);
 
-        while (i) {
-                out_char(p_tty->p_console, *p++, color);
-                i--;
-        }
-}
+//         while (i) {
+//                 out_char(p_tty->p_console, *p++, color);
+//                 i--;
+//         }
+// }
 
 /*======================================================================*
                               sys_write
@@ -170,12 +170,12 @@ PUBLIC void tty_write(TTY* p_tty, char* buf, u8 color)
 //         return 0;
 // }
 
-PUBLIC void out_str(char* buf, int color)
-{
-	CONSOLE* p_con = console_table;
-	char* p = buf;
-	while(*p){
-		out_char(p_con, *p, color);
-	}
-}
+// PUBLIC void out_str(char* buf, int color)
+// {
+// 	CONSOLE* p_con = console_table;
+// 	char* p = buf;
+// 	while(*p){
+// 		out_char(p_con, *p, color);
+// 	}
+// }
 

@@ -25,7 +25,7 @@ PUBLIC void p_process(SEMAPHORE* s){
     if (s->value < 0){
         p_proc_ready->blocked = 1;
         s->p_list[s->tail] = p_proc_ready;
-        s->tail = (s->tail + 1) % NR_TASKS;
+        s->tail = (s->tail + 1) % NR_PROCS;
         schedule();
     }
 }
@@ -34,7 +34,7 @@ PUBLIC void v_process(SEMAPHORE* s){
     s->value++;
     if (s->value <= 0){
         s->p_list[s->head]->blocked = 0; // 唤醒最先进入队列的进程
-        s->head = (s->head + 1) % NR_TASKS;
+        s->head = (s->head + 1) % NR_PROCS;
     }
 }
 
@@ -45,14 +45,12 @@ PUBLIC void schedule()
 {
 	PROCESS* p;
 	int	greatest_ticks = 0;
-	int flag = 1;
 
 	while (!greatest_ticks) {
-		for (p = proc_table + 1; p < proc_table+NR_TASKS+NR_PROCS; p++) {
+		for (p = proc_table; p < proc_table+NR_TASKS+NR_PROCS; p++) {
 
 			if (p->sleeping > 0 || p->blocked) continue; 
 			// 正在睡眠/阻塞的进程不会被执行（也就是不会被分配时间片）
-			flag = 0;
 			if (p->ticks > greatest_ticks) {
 				greatest_ticks = p->ticks;
 				p_proc_ready = p;
@@ -60,15 +58,11 @@ PUBLIC void schedule()
 		}
 		// 如果都是0，那么需要重设ticks
 		if (!greatest_ticks) {
-			for (p = proc_table + 1; p < proc_table+NR_TASKS+NR_PROCS; p++) {
-				if (p->ticks > 0) continue; // 正在睡眠/阻塞的进程（>0却还进入这个if语句块的唯一可能）可能还剩时间片，不应重置
+			for (p = proc_table; p < proc_table+NR_TASKS+NR_PROCS; p++) {
+				if (p->ticks > 0) continue; // >0 还进入这里只能说明它被阻塞了
 				p->ticks = p->priority;
 			}
 		}
-		if (flag) {
-			p_proc_ready = proc_table;
-			break;
-		}; // 如果全都在阻塞状态，那么放弃本次调度
 	}
 }
 

@@ -31,16 +31,16 @@ int vsprintf(char *buf, const char *fmt, va_list args)
 		fmt++;
 
 		switch (*fmt) {
-		case 'x':
+		case 'd':
 			itoa(tmp, *((int*)p_next_arg));
 			strcpy(p, tmp);
 			p_next_arg += 4;
 			p += strlen(tmp);
 			break;
 		case 'c':
-			strcpy(p, *p_next_arg);
-			p_next_arg += 1;
-			p += 1;
+			*p = *p_next_arg;
+			p_next_arg += 4;
+			p++;
 			break;
 		case 's':
 			break;

@@ -26,8 +26,8 @@ PUBLIC char * itoa(char * str, int num)/* 数字前面的 0 不被显示出来, 
 	int	i;
 	int	flag = 0;
 
-	*p++ = '0';
-	*p++ = 'x';
+	// *p++ = '0';
+	// *p++ = 'x';
 
 	if(num == 0){
 		*p++ = '0';

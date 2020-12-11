@@ -36,7 +36,7 @@ PUBLIC void init_screen(TTY* p_tty)
 
 	int v_mem_size = V_MEM_SIZE >> 1;	/* 显存总大小 (in WORD) */
 
-	int con_v_mem_size                   = v_mem_size / NR_CONSOLES;
+	int con_v_mem_size                   = v_mem_size;
 	p_tty->p_console->original_addr      = nr_tty * con_v_mem_size;
 	p_tty->p_console->v_mem_limit        = con_v_mem_size;
 	p_tty->p_console->current_start_addr = p_tty->p_console->original_addr;
