@@ -144,7 +144,6 @@ PUBLIC void init_screen(TTY* p_tty)
 
 // clean and reset, maybe the name "refresh" is more suitable
 PUBLIC void clean_screen(CONSOLE* p_con){
-	p_con->cleaning = 1;
 	u8* p_vmem = (u8*)(V_MEM_BASE);
 	for (int i=p_con->original_addr;i<p_con->cursor;i++){
 		*p_vmem++ = ' ';
@@ -154,7 +153,6 @@ PUBLIC void clean_screen(CONSOLE* p_con){
 	= p_con->original_addr;
 	lfTop = opTop = -1;
 	flush(p_con);
-	p_con->cleaning = 0;
 }
 
 /*======================================================================*
