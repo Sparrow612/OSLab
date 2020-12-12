@@ -248,7 +248,7 @@ write_f write_funcs[3] = {write_v0, write_v1, write_v2};
  *======================================================================*/
 void ReaderA()
 {
-	sleep_ms(5000);
+	sleep_ms(TIME_SLICE);
 	while(1){
 		read_funcs[strategy]('A', 2, '\01');
 		sleep_ms(TIME_SLICE);
@@ -260,7 +260,7 @@ void ReaderA()
  *======================================================================*/
 void ReaderB()
 {
-	sleep_ms(10000);
+	sleep_ms(2*TIME_SLICE);
 	while(1){
 		read_funcs[strategy]('B', 3, '\02');
 		sleep_ms(TIME_SLICE);
@@ -272,7 +272,7 @@ void ReaderB()
  *======================================================================*/
 void ReaderC()
 {
-	sleep_ms(15000);
+	sleep_ms(3*TIME_SLICE);
 	while(1){
 		read_funcs[strategy]('C', 3, '\03');
 		sleep_ms(TIME_SLICE);
@@ -284,7 +284,7 @@ void ReaderC()
  *======================================================================*/
 void WritterD()
 {
-	sleep_ms(20000);
+	sleep_ms(4*TIME_SLICE);
 	while(1){
 		write_funcs[strategy]('D', 3, '\04');
 		sleep_ms(TIME_SLICE);
@@ -296,7 +296,7 @@ void WritterD()
  *======================================================================*/
 void WritterE()
 {
-	sleep_ms(25000);
+	sleep_ms(5*TIME_SLICE);
 	while(1){
 		write_funcs[strategy]('E', 4, '\05');
 		sleep_ms(TIME_SLICE);
@@ -308,7 +308,7 @@ void WritterE()
  *======================================================================*/
 void ReporterF()
 {
-	sleep_ms(500);
+	sleep_ms(TIME_SLICE);
 	char color = '\06';
 	while (1) {
         if (readers > 0 ){
