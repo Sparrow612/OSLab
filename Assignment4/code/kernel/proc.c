@@ -21,6 +21,7 @@
  * FCFS算法
  */
 PUBLIC void p_process(SEMAPHORE* s){
+	disable_int();
     s->value--;
     if (s->value < 0){
         p_proc_ready->blocked = 1;
@@ -28,14 +29,17 @@ PUBLIC void p_process(SEMAPHORE* s){
         s->tail = (s->tail + 1) % NR_PROCS;
         schedule();
     }
+	enable_int();
 }
 
 PUBLIC void v_process(SEMAPHORE* s){
+	disable_int();
     s->value++;
     if (s->value <= 0){
         s->p_list[s->head]->blocked = 0; // 唤醒最先进入队列的进程
         s->head = (s->head + 1) % NR_PROCS;
     }
+	enable_int();
 }
 
 /*======================================================================*
