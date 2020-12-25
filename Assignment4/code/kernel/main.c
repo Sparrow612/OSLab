@@ -17,6 +17,7 @@
 
 
 int strategy;
+int tr;
 
 PRIVATE void init_tasks()
 {
@@ -38,7 +39,9 @@ PRIVATE void init_tasks()
 	writters = 0;
 	writting = 0;
 
-	strategy = 2; // 切换策略
+        tr = 0;
+
+	strategy = 1; // 切换策略
 
 	p_proc_ready = proc_table;
 }
@@ -135,22 +138,33 @@ PRIVATE	write_proc(char proc, int slices, char color){
 void read_v0(char proc, int slices, char color){
 	printf("%c%c arrives\n", color, proc);
 	P(&queue);
-	P(&n_r_mutex);
+
 	P(&r_mutex); // 每个读者原子地访问readers变量
 	if (readers==0)
 		P(&rw_mutex); // 有读者，禁止写
 	readers++;
 	V(&r_mutex);
 	V(&queue);
+
+	P(&n_r_mutex);
+	
+	P(&r_mutex);
+	tr++;
+	V(&r_mutex);
+	
 	read_proc(proc, slices, color);
+	
+	P(&r_mutex);
+	tr--;
+	V(&r_mutex);
+	
+	V(&n_r_mutex);
 
 	P(&r_mutex);
 	readers--;
 	if (readers==0)
 		V(&rw_mutex); // 没有读者，可以开始写了
 	V(&r_mutex);
-
-	V(&n_r_mutex);
 }
 
 void write_v0(char proc, int slices, char color){
@@ -168,14 +182,26 @@ void write_v0(char proc, int slices, char color){
 void read_v1(char proc, int slices, char color){
 	printf("%c%c arrives\n", color, proc);	
 		
-	P(&n_r_mutex);
 	P(&r_mutex); // 每个读者原子地访问readers变量
 	if (readers==0)
 		P(&rw_mutex); // 有读者，禁止写
 	readers++;
 	V(&r_mutex);
 	// 读过程
+	
+	P(&n_r_mutex);
+	
+	P(&r_mutex);
+	tr++;
+	V(&r_mutex);
+	
 	read_proc(proc, slices, color);
+	
+	P(&r_mutex);
+	tr--;
+	V(&r_mutex);
+	
+	V(&n_r_mutex);
 
 	P(&r_mutex);
 	readers--;
@@ -183,7 +209,6 @@ void read_v1(char proc, int slices, char color){
 		V(&rw_mutex); // 没有读者，可以开始写了
 	V(&r_mutex);
 
-	V(&n_r_mutex);
 }
 
 void write_v1(char proc, int slices, char color){
@@ -200,22 +225,32 @@ void write_v1(char proc, int slices, char color){
 void read_v2(char proc, int slices, char color){
 	printf("%c%c arrives\n", color, proc);
 	P(&queue);
-	P(&n_r_mutex);
 	P(&r_mutex); // 每个读者原子地访问readers变量
 	if (readers==0)
 		P(&rw_mutex); // 有读者，禁止写
 	readers++;
 	V(&r_mutex);
 	V(&queue);
+	//读过程开始
+	P(&n_r_mutex);
+	
+	P(&r_mutex);
+	tr++;
+	V(&r_mutex);
+	
 	read_proc(proc, slices, color);
+	
+	P(&r_mutex);
+	tr--;
+	V(&r_mutex);
+	
+	V(&n_r_mutex);
 
 	P(&r_mutex);
 	readers--;
 	if (readers==0)
 		V(&rw_mutex); // 没有读者，可以开始写了
 	V(&r_mutex);
-
-	V(&n_r_mutex);
 }
 
 void write_v2(char proc, int slices, char color){
@@ -311,8 +346,8 @@ void ReporterF()
 	sleep_ms(TIME_SLICE);
 	char color = '\06';
 	while (1) {
-        if (readers > 0 ){
-            printf("%c%d person is reading\n", color, readers);
+        if (readers > 0 && tr > 0){
+            printf("%c%d person is reading\n", color, tr);
         } else if (writting){
             printf("%cThe book is being written\n", color);
         } else {
